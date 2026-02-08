@@ -1,2 +1,16 @@
 # TTG WLED 4-LED Indicator Case
-This is a compact, self-contained 3D printed case designed for a WLED-powered 4-LED  status indicator, ideal for Home Assistant notifications and glanceable system monitoring.  Paired with an ESP8266 (D1 Mini) and WS2812B LEDs, this case creates a simple visual indicator that can display any numeric sensor — such as battery voltage, wind speed, air quality, printer status, or automation states — without screens or dashboards.
+
+3D-printed case + Home Assistant blueprint for a 4–5 LED WLED indicator using the **Percent** effect.
+
+## What it does
+- Displays AQI / printer status / voltage / any numeric sensor
+- Calibration options for 4 or 5 LEDs
+- Works with Home Assistant + WLED
+
+## Included
+- STL files
+- Home Assistant blueprint + examples
+- Wiring notes / documentation
+
+## Links
+- MakerWorld: (add link)
