@@ -1,0 +1,268 @@
+blueprint:
+  name: TTG WLED 4-LED Indicator (Percent Effect)
+  description: >
+    Drives a 4-LED WLED indicator using the WLED "Percent" effect.
+    Maps any numeric sensor into 0/25/50/75/100% steps (0–4 LEDs).
+    Colors are set by step (off/red/yellow/green by default).
+    Intended for small self-contained WLED indicator boxes (ESP8266 D1 Mini + 4 WS2812B).
+
+  domain: automation
+  input:
+    source_sensor:
+      name: Sensor (numeric)
+      description: The sensor to display (e.g., battery voltage).
+      selector:
+        entity:
+          domain: sensor
+
+    wled_light:
+      name: WLED Light entity
+      description: The WLED light entity (e.g., light.wled_solar_notify).
+      selector:
+        entity:
+          domain: light
+
+    wled_intensity:
+      name: WLED Intensity number entity
+      description: The WLED intensity entity used by the "Percent" effect (e.g., number.wled_solar_notify_intensity).
+      selector:
+        entity:
+          domain: number
+
+    min_value:
+      name: Minimum value (0%)
+      description: Sensor value that should display 0% (0 LEDs).
+      default: 11.8
+      selector:
+        number:
+          min: -1000
+          max: 1000
+          step: 0.01
+          mode: box
+
+    max_value:
+      name: Maximum value (100%)
+      description: Sensor value that should display 100% (4 LEDs).
+      default: 13.5
+      selector:
+        number:
+          min: -1000
+          max: 1000
+          step: 0.01
+          mode: box
+
+    brightness:
+      name: Brightness (0-255)
+      description: Indicator brightness (suggest 10–40).
+      default: 20
+      selector:
+        number:
+          min: 1
+          max: 255
+          step: 1
+          mode: slider
+
+    effect_name:
+      name: Effect name
+      description: WLED effect to use (should be "Percent").
+      default: Percent
+      selector:
+        text: {}
+
+    # Calibrated intensity values (defaults match your tested WLED behavior)
+    intensity_step_1:
+      name: Intensity for 1 LED
+      description: WLED intensity value that lights 1 LED (Percent effect).
+      default: 10
+      selector:
+        number:
+          min: 0
+          max: 255
+          step: 1
+          mode: slider
+
+    intensity_step_2:
+      name: Intensity for 2 LEDs
+      description: WLED intensity value that lights 2 LEDs (Percent effect).
+      default: 30
+      selector:
+        number:
+          min: 0
+          max: 255
+          step: 1
+          mode: slider
+
+    intensity_step_3:
+      name: Intensity for 3 LEDs
+      description: WLED intensity value that lights 3 LEDs (Percent effect).
+      default: 50
+      selector:
+        number:
+          min: 0
+          max: 255
+          step: 1
+          mode: slider
+
+    intensity_step_4:
+      name: Intensity for 4 LEDs
+      description: WLED intensity value that lights 4 LEDs (Percent effect).
+      default: 70
+      selector:
+        number:
+          min: 0
+          max: 255
+          step: 1
+          mode: slider
+
+    color_step_1:
+      name: Color for 1 LED (Step 1)
+      default: [255, 0, 0]
+      selector:
+        color_rgb: {}
+
+    color_step_2_3:
+      name: Color for 2-3 LEDs (Step 2-3)
+      default: [255, 180, 0]
+      selector:
+        color_rgb: {}
+
+    color_step_4:
+      name: Color for 4 LEDs (Step 4)
+      default: [0, 255, 0]
+      selector:
+        color_rgb: {}
+
+    off_behavior:
+      name: 0 LEDs behavior
+      description: Turn light OFF (recommended) or leave ON at 0% intensity.
+      default: turn_off
+      selector:
+        select:
+          options:
+            - label: Turn light off
+              value: turn_off
+            - label: Leave light on (0% intensity)
+              value: stay_on
+
+    debounce_seconds:
+      name: Debounce (seconds)
+      description: Optional debounce time to avoid rapid flicker (0 disables).
+      default: 0
+      selector:
+        number:
+          min: 0
+          max: 120
+          step: 1
+          mode: slider
+
+mode: single
+max_exceeded: silent
+
+trigger:
+  - platform: state
+    entity_id: !input source_sensor
+
+variables:
+  sensor_entity: !input source_sensor
+  wled_light: !input wled_light
+  wled_intensity: !input wled_intensity
+
+  v: "{{ states(sensor_entity) | float(0) }}"
+  v_min: !input min_value
+  v_max: !input max_value
+
+  pct: >
+    {% set denom = (v_max - v_min) %}
+    {% if denom == 0 %}
+      0
+    {% else %}
+      {% set p = ((v - v_min) / denom) * 100 %}
+      {{ [0, [p, 100] | min] | max }}
+    {% endif %}
+
+  steps_capped: >
+    {% set s = ((pct | float(0)) / 25) | round(0, 'floor') | int(0) %}
+    {{ [0, [s, 4] | min] | max }}
+
+  i1: !input intensity_step_1
+  i2: !input intensity_step_2
+  i3: !input intensity_step_3
+  i4: !input intensity_step_4
+
+  intensity: >
+    {% set s = steps_capped | int(0) %}
+    {% if s <= 0 %} 0
+    {% elif s == 1 %} {{ i1 }}
+    {% elif s == 2 %} {{ i2 }}
+    {% elif s == 3 %} {{ i3 }}
+    {% else %} {{ i4 }}
+    {% endif %}
+
+  c1: !input color_step_1
+  c23: !input color_step_2_3
+  c4: !input color_step_4
+
+  chosen_color: >
+    {% set s = steps_capped | int(0) %}
+    {% if s <= 0 %}
+      none
+    {% elif s == 1 %}
+      {{ c1 }}
+    {% elif s <= 3 %}
+      {{ c23 }}
+    {% else %}
+      {{ c4 }}
+    {% endif %}
+
+  brightness: !input brightness
+  effect_name: !input effect_name
+  off_behavior: !input off_behavior
+  debounce_seconds: !input debounce_seconds
+
+condition: []
+
+action:
+  - choose:
+      - conditions:
+          - condition: template
+            value_template: "{{ (debounce_seconds | int(0)) > 0 }}"
+        sequence:
+          - delay:
+              seconds: "{{ debounce_seconds | int(0) }}"
+
+  - choose:
+      - conditions:
+          - condition: template
+            value_template: "{{ (steps_capped | int(0)) <= 0 and off_behavior == 'turn_off' }}"
+        sequence:
+          - service: light.turn_off
+            target:
+              entity_id: "{{ wled_light }}"
+      - conditions:
+          - condition: template
+            value_template: "{{ (steps_capped | int(0)) <= 0 and off_behavior == 'stay_on' }}"
+        sequence:
+          - service: light.turn_on
+            target:
+              entity_id: "{{ wled_light }}"
+            data:
+              effect: "{{ effect_name }}"
+              brightness: "{{ brightness }}"
+          - service: number.set_value
+            target:
+              entity_id: "{{ wled_intensity }}"
+            data:
+              value: 0
+    default:
+      - service: light.turn_on
+        target:
+          entity_id: "{{ wled_light }}"
+        data:
+          effect: "{{ effect_name }}"
+          brightness: "{{ brightness }}"
+          rgb_color: "{{ chosen_color }}"
+      - service: number.set_value
+        target:
+          entity_id: "{{ wled_intensity }}"
+        data:
+          value: "{{ intensity }}"

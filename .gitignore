@@ -1,0 +1,19 @@
+# Secrets / credentials
+secrets.yaml
+secrets.h
+*.secret*
+*.env
+
+# Logs / temp
+*.log
+*.tmp
+*.bak
+
+# OS junk
+.DS_Store
+Thumbs.db
+
+# ESPHome build/cache (if present)
+.esphome/
+.build/
+.pio/
